@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Estimation Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green:#5843D4;    --dkgreen:#35297F;  --ltgreen:#EDEAFF; --mdgreen:#C9BFFF;
+  --rose:#961789;     --ltrose:rgba(150,23,137,0.09);
+  --black:#000000;    --white:#FFFFFF;
+  --bg:#FFFFFF;       --surface:#F5F2FF;  --card:#FFFFFF;
+  --border:#D0C8FF;   --text:#000000;     --muted:#6B5BAE;
+  --input-bg:#FAF9FF; --shadow:rgba(53,41,127,0.10);
+  --row-hover:rgba(88,67,212,0.05);
+  --tag-g:rgba(88,67,212,0.09);  --tag-r:rgba(150,23,137,0.09);
+  --sub:rgba(88,67,212,0.04);
+}
+[data-theme="dark"] {
+  --bg:#070511;       --surface:#0F0B22;  --card:#140F28;
+  --border:#2C2060;   --text:#FFFFFF;     --muted:#9B8AD4;
+  --input-bg:#0A0718; --shadow:rgba(0,0,0,0.55);
+  --row-hover:rgba(155,138,255,0.09);
+  --tag-g:rgba(155,138,255,0.14); --tag-r:rgba(212,78,204,0.14);
+  --sub:rgba(155,138,255,0.06);
+  --green:#9B8AFF;    --dkgreen:#BEB0FF;  --ltgreen:rgba(155,138,255,0.10);
+  --rose:#D44ECC;     --ltrose:rgba(212,78,204,0.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;transition:background .3s,color .3s;}
+
+header{background:linear-gradient(135deg,#35297F 0%,#6B1A82 55%,#961789 100%);padding:13px 30px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 3px 18px rgba(53,41,127,.45);}
+.logo{display:flex;align-items:center;gap:11px;}
+.logo-icon{width:36px;height:36px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+h1{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#fff;}
+.hdr-sub{font-size:11px;color:rgba(255,255,255,.7);margin-top:1px;}
+.hdr-right{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.hdr-lbl{font-size:12px;color:rgba(255,255,255,.85);font-weight:600;}
+.hdr-sel{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;padding:6px 10px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
+.hdr-sel option{background:#35297F;}
+.theme-btn{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px;transition:background .2s;}
+.theme-btn:hover{background:rgba(255,255,255,.28);}
+
+.sync-badge{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);border-radius:18px;padding:5px 12px;font-size:11px;color:#fff;font-weight:600;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#A78BFF;flex-shrink:0;}
+.sync-dot.off{background:#888;}
+.sync-dot.pulse{animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+.export-wrap{position:relative;}
+.export-btn{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.38);color:#fff;padding:6px 14px;border-radius:18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;transition:background .2s;white-space:nowrap;}
+.export-btn:hover{background:rgba(255,255,255,.30);}
+.export-btn .arrow{font-size:10px;transition:transform .2s;}
+.export-btn.open .arrow{transform:rotate(180deg);}
+.export-dropdown{position:absolute;top:calc(100% + 7px);right:0;background:#fff;border:1.5px solid #D0C8FF;border-radius:11px;box-shadow:0 8px 28px rgba(53,41,127,.22);min-width:200px;overflow:hidden;z-index:500;display:none;animation:fadeUp .18s ease;}
+.export-dropdown.show{display:block;}
+.export-dropdown-header{padding:8px 14px 6px;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6B5BAE;border-bottom:1px solid #EDEAFF;}
+.export-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .15s;font-size:13px;color:#1a1a2e;font-family:'DM Sans',sans-serif;font-weight:500;}
+.export-item:hover{background:#F5F2FF;}
+.export-item .ei-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.ei-excel{background:#E6F4EA;}
+.ei-pdf{background:#FCE8E8;}
+.ei-ppt{background:#FFF0E6;}
+.export-item .ei-label{font-size:13px;font-weight:600;}
+.export-item .ei-sub{font-size:10px;color:#6B5BAE;margin-top:1px;}
+.export-divider{height:1px;background:#EDEAFF;margin:3px 0;}
+
+.main{padding:22px 30px;max-width:1380px;margin:0 auto;}
+select,input[type=number],input[type=text]{background:var(--input-bg);border:1.5px solid var(--border);color:var(--text);padding:7px 10px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s;}
+select:focus,input:focus{border-color:var(--green);}
+
+.stitle{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:13px;display:flex;align-items:center;gap:8px;}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
+.kpi{background:var(--card);border:1.5px solid var(--border);border-radius:13px;padding:16px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;box-shadow:0 2px 7px var(--shadow);}
+.kpi:hover{transform:translateY(-3px);box-shadow:0 7px 20px var(--shadow);}
+.kpi-name{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.kpi-val{font-family:'Syne',sans-serif;font-size:27px;font-weight:800;line-height:1;}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5;}
+
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.chart-card{background:var(--card);border:1.5px solid var(--border);border-radius:13px;padding:20px;box-shadow:0 2px 7px var(--shadow);}
+.chart-inner{position:relative;width:100%;height:280px;}
+.chart-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
+.legend-swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+
+.total-pages-strip{width:100%;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--sub);border:1.5px solid var(--border);border-radius:8px;margin-top:10px;margin-bottom:4px;}
+.total-pages-strip .tp-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+.total-pages-strip .tp-val{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--green);}
+.total-pages-strip .tp-unit{font-size:10px;color:var(--muted);}
+
+.tbl-card,.entry-panel,.sync-card{background:var(--card);border:1.5px solid var(--border);border-radius:13px;padding:20px;margin-bottom:20px;box-shadow:0 2px 7px var(--shadow);}
+.tbl-card table{width:100%;border-collapse:collapse;}
+.tbl-card thead th{background:var(--surface);font-family:'Syne',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:9px 12px;text-align:left;border-bottom:1.5px solid var(--border);}
+.tbl-card tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+.tbl-card tbody tr:hover{background:var(--row-hover);}
+.tbl-card tbody td{padding:8px 12px;font-size:13px;color:var(--text);vertical-align:middle;}
+.tbl-card td.num{font-family:'Syne',sans-serif;font-weight:600;}
+.tbl-card .totrow td{background:var(--sub)!important;}
+.person-cell{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;vertical-align:middle!important;}
+.type-sel{background:var(--input-bg);border:1.5px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;cursor:pointer;min-width:110px;transition:border-color .2s;}
+.type-sel:focus{border-color:var(--green);}
+.badge{display:inline-block;padding:2px 8px;border-radius:14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.bg{background:var(--tag-g);color:var(--green);border:1px solid rgba(88,67,212,0.22);}
+.br{background:var(--tag-r);color:var(--rose);border:1px solid rgba(150,23,137,0.22);}
+
+.sync-card{border:2px solid var(--green);}
+.sync-card h3{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+.sync-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.sync-status-bar{flex:1;min-width:180px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;}
+.sync-status-bar b{color:var(--text);}
+.countdown{font-family:'Syne',sans-serif;font-weight:700;font-size:11px;color:var(--green);background:var(--tag-g);padding:3px 9px;border-radius:10px;border:1px solid rgba(88,67,212,0.22);}
+.drop-zone{border:2px dashed var(--border);border-radius:10px;padding:22px 18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--sub);position:relative;}
+.drop-zone.dragover{border-color:var(--green);background:var(--tag-g);}
+.drop-zone input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+.drop-icon{font-size:28px;margin-bottom:6px;}
+.drop-text{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.drop-sub{font-size:11px;color:var(--muted);}
+.import-msg{margin-top:12px;padding:10px 14px;border-radius:7px;font-size:12px;display:none;}
+.msg-ok{background:var(--tag-g);color:var(--green);border:1.5px solid rgba(88,67,212,0.28);}
+.msg-err{background:var(--tag-r);color:var(--rose);border:1.5px solid rgba(150,23,137,0.28);}
+.fmt-guide{margin-top:14px;background:var(--surface);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.7;}
+.fmt-guide strong{color:var(--text);}
+.fmt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:9px;}
+.fmt-col{background:var(--card);border:1.5px solid var(--border);border-radius:7px;padding:9px 11px;}
+.fmt-col b{font-family:'Syne',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--green);}
+
+.entry-panel>h3{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:7px;}
+.rate-legend{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+.rl{background:var(--surface);border:1.5px solid var(--border);border-radius:7px;padding:5px 11px;font-size:11px;display:flex;align-items:center;gap:5px;color:var(--text);}
+.rl strong{font-family:'Syne',sans-serif;font-size:12px;color:var(--green);}
+.month-row{display:flex;gap:11px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;}
+.month-row>div label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;font-weight:600;}
+
+.ptabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.ptab{padding:5px 9px 5px 14px;border-radius:18px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:6px;}
+.ptab.active{background:var(--green);color:#fff;border-color:var(--green);}
+.ptab:hover:not(.active){border-color:var(--green);color:var(--green);}
+.ptab-x{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:11px;font-weight:700;background:rgba(0,0,0,0.09);color:inherit;border:none;cursor:pointer;padding:0;flex-shrink:0;line-height:1;transition:background .15s,color .15s;}
+.ptab.active .ptab-x{background:rgba(255,255,255,0.22);color:#fff;}
+.ptab-x:hover{background:rgba(150,23,137,0.28)!important;color:var(--rose)!important;}
+.ptab.active .ptab-x:hover{background:rgba(255,255,255,0.38)!important;}
+
+.ptab-add{background:var(--tag-g);color:var(--green);border:1.5px solid var(--green);font-size:16px;font-weight:700;min-width:34px;padding:4px 11px;border-radius:18px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:4px;font-family:'DM Sans',sans-serif;}
+.ptab-add:hover{background:var(--green);color:#fff;}
+.ptab-add-label{font-size:11px;font-weight:600;}
+
+.add-member-panel{background:var(--surface);border:2px dashed var(--green);border-radius:11px;padding:16px 18px;margin-bottom:16px;display:none;animation:fadeUp .25s ease both;}
+.add-member-panel.show{display:block;}
+.amp-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.amp-row{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;}
+.amp-row>div label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px;}
+.amp-row>div input{min-width:180px;}
+.amp-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.btn-amp-confirm{background:var(--green);color:#fff;border:none;padding:7px 18px;border-radius:7px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:5px;}
+.btn-amp-confirm:hover{background:var(--dkgreen);}
+.btn-amp-template{background:var(--surface);color:var(--green);border:1.5px solid var(--green);padding:7px 16px;border-radius:7px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:5px;}
+.btn-amp-template:hover{background:var(--tag-g);}
+.btn-amp-cancel{background:transparent;color:var(--muted);border:1.5px solid var(--border);padding:7px 14px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .18s;}
+.btn-amp-cancel:hover{color:var(--rose);border-color:var(--rose);}
+.amp-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;padding:8px 11px;background:var(--card);border-radius:6px;border:1px solid var(--border);}
+.amp-error{font-size:11px;color:var(--rose);background:var(--tag-r);border:1px solid rgba(150,23,137,.25);border-radius:6px;padding:6px 10px;margin-top:6px;display:none;}
+
+.del-overlay{position:fixed;inset:0;background:rgba(7,5,17,.60);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadeUp .18s ease;}
+.del-box{background:var(--card);border:2px solid var(--rose);border-radius:14px;padding:26px 30px;max-width:380px;width:90%;box-shadow:0 14px 44px rgba(150,23,137,.30);}
+.del-box h4{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:var(--rose);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.del-box p{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:20px;}
+.del-box p strong{color:var(--text);}
+.del-btns{display:flex;gap:9px;justify-content:flex-end;}
+.btn-del-no{background:var(--surface);color:var(--muted);border:1.5px solid var(--border);padding:8px 18px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .15s;}
+.btn-del-no:hover{border-color:var(--green);color:var(--green);}
+.btn-del-yes{background:var(--rose);color:#fff;border:none;padding:8px 22px;border-radius:7px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.btn-del-yes:hover{opacity:.85;}
+
+.pform{display:none;}.pform.active{display:block;}
+.fsec{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:12px 0 9px;display:flex;align-items:center;gap:7px;}
+.fsec::after{content:'';flex:1;height:1.5px;background:var(--border);}
+.rt{width:100%;border-collapse:collapse;margin-bottom:7px;}
+.rt th{background:var(--surface);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:8px 11px;text-align:left;border-bottom:1.5px solid var(--border);}
+.rt td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text);}
+.rt input[type=number]{max-width:105px;width:100%;padding:6px 9px;font-size:13px;}
+.rt input[type=text]{width:100%;padding:6px 9px;font-size:12px;}
+.rate-pill{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--green);background:var(--tag-g);padding:4px 10px;border-radius:6px;display:inline-block;border:1px solid rgba(88,67,212,0.22);min-width:62px;text-align:center;}
+.calc-pill{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--rose);background:var(--tag-r);padding:4px 11px;border-radius:6px;display:inline-block;border:1px solid rgba(150,23,137,0.22);min-width:72px;text-align:center;}
+.grand-strip{margin-top:12px;padding:11px 14px;background:var(--sub);border-radius:8px;border:1.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.grand-strip .lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.grand-val{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:var(--green);background:var(--card);padding:4px 14px;border-radius:7px;border:1.5px solid var(--border);}
+.btn{padding:7px 16px;border-radius:7px;border:none;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;transition:all .18s;display:inline-flex;align-items:center;gap:5px;}
+.btn-add-row{background:var(--surface);color:var(--green);border:1.5px dashed var(--green);padding:6px 14px;margin-top:3px;}
+.btn-add-row:hover{background:var(--tag-g);}
+.btn-del{background:transparent;color:var(--rose);border:1px solid rgba(150,23,137,.25);padding:3px 8px;font-size:11px;}
+.btn-del:hover{background:var(--tag-r);}
+.btn-save{margin-top:16px;background:var(--green);color:#fff;padding:9px 22px;font-size:13px;box-shadow:0 4px 14px rgba(88,67,212,.35);}
+.btn-save:hover{background:var(--dkgreen);transform:translateY(-1px);}
+.btn-connect{background:var(--green);color:#fff;padding:8px 18px;font-size:12px;box-shadow:0 3px 10px rgba(88,67,212,.28);}
+.btn-connect:hover{background:var(--dkgreen);}
+.btn-disconnect{background:var(--tag-r);color:var(--rose);border:1.5px solid rgba(150,23,137,.35);padding:8px 16px;font-size:12px;}
+.btn-disconnect:hover{background:var(--ltrose);}
+.save-msg{display:none;background:var(--tag-g);color:var(--green);border:1.5px solid rgba(88,67,212,.28);border-radius:7px;padding:8px 13px;margin-top:10px;font-size:12px;}
+.divider{height:1.5px;background:var(--border);margin:14px 0;}
+
+.save-export-row{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.export-entry-wrap{position:relative;}
+.export-entry-btn{background:var(--surface);color:var(--green);border:1.5px solid var(--green);padding:9px 18px;border-radius:7px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .18s;}
+.export-entry-btn:hover{background:var(--tag-g);}
+.export-entry-btn .arrow{font-size:10px;transition:transform .2s;}
+.export-entry-btn.open .arrow{transform:rotate(180deg);}
+.export-entry-dropdown{position:absolute;bottom:calc(100% + 7px);left:0;background:#fff;border:1.5px solid #D0C8FF;border-radius:11px;box-shadow:0 -8px 28px rgba(53,41,127,.18);min-width:210px;overflow:hidden;z-index:500;display:none;animation:fadeDown .18s ease;}
+.export-entry-dropdown.show{display:block;}
+@keyframes fadeDown{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.fb-config-banner{background:linear-gradient(135deg,#F0EEFF,#FCE8FF);border:2px solid #961789;border-radius:12px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px;}
+.fb-config-banner.hidden{display:none;}
+.fb-icon{font-size:28px;flex-shrink:0;margin-top:2px;}
+.fb-text h4{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#35297F;margin-bottom:5px;}
+.fb-text p{font-size:12px;color:#5D4E7F;line-height:1.7;margin-bottom:10px;}
+.fb-inputs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+.fb-inputs input{background:#fff;border:1.5px solid #961789;color:#333;padding:7px 11px;border-radius:7px;font-size:12px;outline:none;min-width:210px;flex:1;}
+.fb-inputs input:focus{border-color:#35297F;}
+.btn-fb-save{background:#35297F;color:#fff;border:none;padding:8px 18px;border-radius:7px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background .2s;}
+.btn-fb-save:hover{background:#961789;}
+.fb-status{font-size:11px;margin-top:6px;padding:6px 10px;border-radius:6px;display:none;}
+.fb-status.ok{background:#EDEAFF;color:#35297F;border:1px solid #C9BFFF;display:block;}
+.fb-status.err{background:#FCE8FF;color:#961789;border:1px solid #E5BADC;display:block;}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.an{animation:fadeUp .38s ease both;}
+.d1{animation-delay:.04s}.d2{animation-delay:.09s}.d3{animation-delay:.14s}
+
+@media(max-width:860px){
+  header{padding:11px 13px;flex-direction:column;gap:9px;}
+  .main{padding:14px 11px;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .chart-row{grid-template-columns:1fr;}
+  .fmt-grid{grid-template-columns:1fr;}
+  .sync-methods-grid{grid-template-columns:1fr!important;}
+  .fb-inputs{flex-direction:column;}
+  .fb-inputs input{min-width:unset;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📊</div>
+    <div>
+      <h1>Work Estimation Dashboard</h1>
+      <div class="hdr-sub">Page Build &amp; Edit Tracker</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="sync-badge"><span class="sync-dot off" id="syncDot"></span><span id="syncLabel">Not syncing</span></div>
+    <span class="hdr-lbl">Month:</span>
+    <select class="hdr-sel" id="monthSelect" onchange="switchMonth()"></select>
+    <div class="export-wrap" id="hdrExportWrap">
+      <button class="export-btn" id="hdrExportBtn" onclick="toggleExportDropdown()">
+        📤 Export <span class="arrow">▾</span>
+      </button>
+      <div class="export-dropdown" id="hdrExportDropdown">
+        <div class="export-dropdown-header">Export: <span id="exportMonthLabel">—</span></div>
+        <div class="export-item" onclick="exportExcel()">
+          <div class="ei-icon ei-excel">📊</div>
+          <div>
+            <div class="ei-label">Export as Excel (.csv)</div>
+            <div class="ei-sub">All data, charts data, detailed rows</div>
+          </div>
+        </div>
+        <div class="export-divider"></div>
+        <div class="export-item" onclick="exportPDF()">
+          <div class="ei-icon ei-pdf">📄</div>
+          <div>
+            <div class="ei-label">Export as PDF</div>
+            <div class="ei-sub">Full page — all details</div>
+          </div>
+        </div>
+        <div class="export-divider"></div>
+        <div class="export-item" onclick="exportPPT()">
+          <div class="ei-icon ei-ppt">📑</div>
+          <div>
+            <div class="ei-label">Export as PPT</div>
+            <div class="ei-sub">Charts + total hours only</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- FIREBASE CONFIG BANNER -->
+  <div class="fb-config-banner an" id="fbConfigBanner">
+    <div class="fb-icon">🔥</div>
+    <div class="fb-text" style="flex:1">
+      <h4>Firebase Setup Required — Paste Your Config Below</h4>
+      <p>Enter your Firebase project credentials to enable real-time cloud sync for all team members. You only need to do this once — values are saved in your browser.</p>
+      <div class="fb-inputs">
+        <input type="text" id="fbApiKey"     placeholder="apiKey  (e.g. AIzaSy...)" autocomplete="off">
+        <input type="text" id="fbAuthDomain" placeholder="authDomain  (e.g. myapp.firebaseapp.com)" autocomplete="off">
+        <input type="text" id="fbProjectId"  placeholder="projectId  (e.g. my-project-id)" autocomplete="off">
+      </div>
+      <button class="btn-fb-save" onclick="saveFbConfig()">🔗 Connect to Firebase</button>
+      <div class="fb-status" id="fbStatus"></div>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid an d1" id="kpiRow"></div>
+
+  <!-- SPLIT CHARTS -->
+  <div class="chart-row an d2">
+    <div class="chart-card">
+      <div class="stitle"><span class="dot" style="background:#5B2C8E"></span>Page Build — Calculated Hours per Person</div>
+      <div class="chart-inner"><canvas id="buildChart"></canvas></div>
+      <div class="total-pages-strip">
+        <span class="tp-label">📄 Total Build Pages</span>
+        <span class="tp-val" id="buildTotalPages">0</span>
+        <span class="tp-unit">pages across all members</span>
+      </div>
+      <div class="chart-legend" id="buildLegend"></div>
+    </div>
+    <div class="chart-card">
+      <div class="stitle"><span class="dot" style="background:#961789"></span>Page Edit — Hours Distribution</div>
+      <div class="chart-inner"><canvas id="editChart"></canvas></div>
+      <div class="total-pages-strip">
+        <span class="tp-label">📝 Total Edit Pages</span>
+        <span class="tp-val" id="editTotalPages">0</span>
+        <span class="tp-unit">pages across all members</span>
+      </div>
+      <div class="chart-legend" id="editLegend"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY TABLE -->
+  <div class="tbl-card an d2">
+    <div class="stitle"><span class="dot" style="background:var(--green)"></span>Summary — Pages &amp; Calculated Hours</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:110px">Person</th>
+          <th style="width:85px">Section</th>
+          <th style="width:150px">Type</th>
+          <th style="width:110px">Fixed Rate</th>
+          <th style="width:90px">Pages</th>
+          <th>Calculated Hours</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- AUTO SYNC CARD -->
+  <div class="sync-card an d3">
+    <h3>🔄 Excel Auto-Sync</h3>
+    <div class="sync-methods-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+      <div>
+        <div class="stitle" style="font-size:13px;margin-bottom:8px;"><span class="dot" style="background:var(--green)"></span>Method 1 — Connect &amp; Auto-Sync (Recommended)</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Connect your Excel file once. The dashboard checks for changes every <strong style="color:var(--text)">5 seconds</strong> and auto-updates all KPIs, charts, and table — no re-upload needed.</p>
+        <div class="sync-row">
+          <button class="btn btn-connect" id="connectBtn" onclick="connectFile()">📂 Connect Excel File</button>
+          <button class="btn btn-disconnect" id="disconnectBtn" style="display:none" onclick="disconnectFile()">✕ Disconnect</button>
+          <div class="sync-status-bar" id="syncStatusBar"><span>No file connected</span></div>
+          <span class="countdown" id="countdown" style="display:none"></span>
+        </div>
+        <div id="apiWarning" style="display:none;font-size:12px;color:var(--rose);background:var(--tag-r);border-radius:7px;padding:8px 12px;margin-top:6px;border:1px solid rgba(150,23,137,.25);">⚠️ Your browser does not support the File System Access API. Please use Method 2, or open in Chrome / Edge.</div>
+      </div>
+      <div>
+        <div class="stitle" style="font-size:13px;margin-bottom:8px;"><span class="dot" style="background:var(--rose)"></span>Method 2 — Manual Upload</div>
+        <div class="drop-zone" id="dropZone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="onFileSelect(event)">
+          <div class="drop-icon">📂</div>
+          <div class="drop-text">Click to browse or drag &amp; drop your Excel file</div>
+          <div class="drop-sub">Supports .xlsx, .xls, .csv</div>
+        </div>
+        <div class="import-msg msg-ok" id="importOk"></div>
+        <div class="import-msg msg-err" id="importErr"></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="fmt-guide">
+      <strong>📋 Expected Excel Format</strong> — column names are flexible, the importer matches by keyword:
+      <div class="fmt-grid">
+        <div class="fmt-col"><b>Page Build Sheet / Section</b><br>Columns: Type | Ramesh | Parivallal | Srinadh | Vigneswari | Krishna<br>Rows: Complex | Moderate | Simple (page counts)</div>
+        <div class="fmt-col"><b>Page Edit Sheet / Section</b><br>Columns: Type | Ramesh | Parivallal | Srinadh | Vigneswari | Krishna<br>Rows: Complex | Moderate | Simple (page counts)</div>
+      </div>
+      <div style="margin-top:8px">💡 The importer reads <strong>Month</strong> (E2) and <strong>Year</strong> (H2) cells from the sheet. If not found it uses the Entry form's month.</div>
+    </div>
+  </div>
+
+  <!-- ENTRY PANEL -->
+  <div class="entry-panel an d3">
+    <h3>✏️ Monthly Page Count Entry</h3>
+    <div class="stitle" style="font-size:12px;margin-bottom:7px;"><span class="dot" style="background:var(--green)"></span>Fixed Estimation Rates — Read Only</div>
+    <div class="rate-legend">
+      <div class="rl"><span class="badge bg">Complex Build</span><strong>2.5</strong> hrs</div>
+      <div class="rl"><span class="badge bg">Moderate Build</span><strong>2.0</strong> hrs</div>
+      <div class="rl"><span class="badge bg">Simple Build</span><strong>1.5</strong> hrs</div>
+      <div class="rl"><span class="badge br">Complex Edit</span><strong>1.0</strong> hr</div>
+      <div class="rl"><span class="badge br">Moderate Edit</span><strong>0.75</strong> hr</div>
+      <div class="rl"><span class="badge br">Simple Edit</span><strong>0.5</strong> hr</div>
+    </div>
+    <div class="month-row">
+      <div><label>Month</label>
+        <select id="entryMonth" onchange="onEntryMonthChange()">
+          <option>January</option><option>February</option><option>March</option>
+          <option>April</option><option>May</option><option>June</option>
+          <option>July</option><option>August</option><option>September</option>
+          <option>October</option><option>November</option><option>December</option>
+        </select>
+      </div>
+      <div><label>Year</label><input type="number" id="entryYear" value="2026" min="2020" max="2099" style="width:80px" onchange="onEntryMonthChange()"></div>
+    </div>
+    <div class="ptabs" id="personTabs"></div>
+    <div class="add-member-panel" id="addMemberPanel">
+      <div class="amp-title">➕ Add New Team Member</div>
+      <div class="amp-row">
+        <div>
+          <label>Member Name</label>
+          <input type="text" id="newMemberName" placeholder="e.g. Aravind" maxlength="40" onkeydown="if(event.key==='Enter')confirmAddMember()">
+        </div>
+      </div>
+      <div class="amp-error" id="ampError"></div>
+      <div class="amp-actions">
+        <button class="btn-amp-confirm" onclick="confirmAddMember()">✅ Add Member</button>
+        <button class="btn-amp-template" onclick="downloadTeamTemplate()">📥 Download Excel Template</button>
+        <button class="btn-amp-cancel" onclick="hideAddMember()">Cancel</button>
+      </div>
+      <div class="amp-note">💡 <strong>Excel Template:</strong> Downloads a pre-formatted Excel file with all current team members. Share it with the team to fill in page counts and re-import via the sync panel above.</div>
+    </div>
+    <div id="personForms"></div>
+    <div class="save-export-row">
+      <button class="btn btn-save" onclick="saveAllData()">💾 Save &amp; Update Dashboard</button>
+      <div class="export-entry-wrap" id="entryExportWrap">
+        <button class="export-entry-btn" id="entryExportBtn" onclick="toggleEntryExportDropdown()">
+          📤 Export <span class="arrow">▾</span>
+        </button>
+        <div class="export-entry-dropdown" id="entryExportDropdown">
+          <div class="export-dropdown-header" style="padding:8px 14px 6px;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6B5BAE;border-bottom:1px solid #EDEAFF;">Export: <span id="entryExportMonthLabel">—</span></div>
+          <div class="export-item" onclick="exportExcel()">
+            <div class="ei-icon ei-excel">📊</div>
+            <div><div class="ei-label">Export as Excel (.csv)</div><div class="ei-sub">All data with chart data</div></div>
+          </div>
+          <div class="export-divider"></div>
+          <div class="export-item" onclick="exportPDF()">
+            <div class="ei-icon ei-pdf">📄</div>
+            <div><div class="ei-label">Export as PDF</div><div class="ei-sub">Full page snapshot</div></div>
+          </div>
+          <div class="export-divider"></div>
+          <div class="export-item" onclick="exportPPT()">
+            <div class="ei-icon ei-ppt">📑</div>
+            <div><div class="ei-label">Export as PPT</div><div class="ei-sub">Charts + total hours</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="save-msg" id="saveMsg"></div>
+  </div>
+
+</div>
+
+<!-- DELETE CONFIRM OVERLAY -->
+<div class="del-overlay" id="delOverlay" style="display:none">
+  <div class="del-box">
+    <h4>🗑️ Remove Member</h4>
+    <p>Remove <strong id="delName"></strong> from the dashboard?<br>Their recorded data is kept safe — you can re-add them any time.</p>
+    <div class="del-btns">
+      <button class="btn-del-no" onclick="closeDelOverlay()">Cancel</button>
+      <button class="btn-del-yes" id="delYesBtn">Yes, Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+import { initializeApp }          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot }
+                                  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+window._fbReady=false; window._fbDB=null; window._fbDocRef=null; window._fbUnsub=null;
+window.initFirebase=function(cfg){try{const app=initializeApp(cfg);const db=getFirestore(app);window._fbDB=db;window._fbDocRef=doc(db,'wed_dashboard','shared_data');window._fbReady=true;return true;}catch(e){console.error('Firebase init error:',e);return false;}};
+window.fbLoad=async function(){if(!window._fbReady)return null;try{const snap=await getDoc(window._fbDocRef);return snap.exists()?snap.data().payload:null;}catch(e){console.warn('fbLoad error:',e);return null;}};
+window.fbSave=async function(jsonStr){if(!window._fbReady)return false;try{await setDoc(window._fbDocRef,{payload:jsonStr,updatedAt:Date.now()});return true;}catch(e){console.warn('fbSave error:',e);return false;}};
+window.fbSubscribe=function(callback){if(!window._fbReady)return;if(window._fbUnsub)window._fbUnsub();window._fbUnsub=onSnapshot(window._fbDocRef,snap=>{if(snap.exists())callback(snap.data().payload);});};
+</script>
+
+<!-- PptxGenJS for PPT export -->
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/libs/pptxgen.bundle.js"></script>
+
+<!-- MAIN APP -->
+<script>
+const FB_CFG_KEY  = 'wed_fb_config';
+const MEMBERS_KEY = 'wed_members_v2';
+
+const _NOW         = new Date();
+const _CUR_YEAR    = _NOW.getFullYear();
+const DEFAULT_MONTH = `January ${_CUR_YEAR}`;
+
+function loadFbConfig(){try{return JSON.parse(localStorage.getItem(FB_CFG_KEY)||'null');}catch(e){return null;}}
+function storeFbConfig(cfg){localStorage.setItem(FB_CFG_KEY,JSON.stringify(cfg));}
+
+async function saveFbConfig(){
+  const apiKey=document.getElementById('fbApiKey').value.trim();
+  const authDomain=document.getElementById('fbAuthDomain').value.trim();
+  const projectId=document.getElementById('fbProjectId').value.trim();
+  if(!apiKey||!authDomain||!projectId){showFbStatus('err','⚠️ Please fill in all three fields.');return;}
+  const cfg={apiKey,authDomain,projectId};
+  if(!window.initFirebase(cfg)){showFbStatus('err','❌ Firebase init failed.');return;}
+  try{
+    await window.fbLoad();
+    storeFbConfig(cfg);
+    showFbStatus('ok','✅ Connected! Data will sync in real-time across all team members.');
+    document.getElementById('fbConfigBanner').classList.add('hidden');
+    setSyncBadge(true);
+    await reloadFromFirebase();
+    window.fbSubscribe(onRemoteChange);
+  }catch(e){showFbStatus('err','❌ Could not reach Firestore. Error: '+e.message);}
+}
+window.saveFbConfig=saveFbConfig;
+
+function showFbStatus(type,msg){const el=document.getElementById('fbStatus');el.className='fb-status '+type;el.textContent=msg;}
+function setSyncBadge(active,label=''){const dot=document.getElementById('syncDot'),lbl=document.getElementById('syncLabel');if(active){dot.className='sync-dot pulse';lbl.textContent=label||'🔥 Firebase Live';}else{dot.className='sync-dot off';lbl.textContent='Not syncing';}}
+
+async function reloadFromFirebase(){const raw=await window.fbLoad();if(raw){try{const p=JSON.parse(raw);if(p&&typeof p==='object'){DB=p;rebuildMonthSelect();renderDashboard();buildEntryPanel();}}catch(e){}}}
+let _ignoreRemote=false;
+function onRemoteChange(raw){if(_ignoreRemote)return;try{const p=JSON.parse(raw);if(p&&typeof p==='object'){DB=p;rebuildMonthSelect();renderDashboard();}}catch(e){}}
+
+const BASE_MEMBERS  = ['Ramesh','Parivallal','Srinadh','Vigneswari','Krishna'];
+let   MEMBERS       = [...BASE_MEMBERS];
+const MONTH_NAMES   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const BUILD_RATES   = {Complex:2.5,Moderate:2.0,Simple:1.5};
+const EDIT_RATES    = {Complex:1.0,Moderate:0.75,Simple:0.5};
+const FIXED_BUILD   = Object.keys(BUILD_RATES);
+const FIXED_EDIT    = Object.keys(EDIT_RATES);
+const SYNC_INTERVAL = 5000;
+
+const CHART_GRADIENT_PALETTE = [
+  '#35297F','#4A268A','#5B2C8E','#7A1F8C','#961789',
+  '#6B2191','#3E2D85','#812090','#441E87','#8E1A8A',
+];
+function getMemberColor(i){return CHART_GRADIENT_PALETTE[i%CHART_GRADIENT_PALETTE.length];}
+
+let isDark=false;
+function toggleTheme(){isDark=!isDark;document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'☀️ Light':'🌙 Dark';renderCharts();}
+
+function emptyPerson(){return{build:{Complex:0,Moderate:0,Simple:0,extra:[]},edit:{Complex:0,Moderate:0,Simple:0,extra:[]}};}
+function emptyMonth(){const m={};MEMBERS.forEach(p=>{m[p]=emptyPerson();});return m;}
+
+function seedDB(){
+  const d={};
+  const prevYear = _CUR_YEAR - 1;
+  d[`November ${prevYear}`] = emptyMonth();
+  d[`December ${prevYear}`] = emptyMonth();
+  const jan = emptyMonth();
+  jan.Ramesh     = {build:{Complex:9, Moderate:5,Simple:3,extra:[]},edit:{Complex:10,Moderate:10,Simple:6, extra:[]}};
+  jan.Parivallal = {build:{Complex:9, Moderate:0,Simple:0,extra:[]},edit:{Complex:50,Moderate:50,Simple:51,extra:[]}};
+  jan.Srinadh    = {build:{Complex:9, Moderate:0,Simple:0,extra:[]},edit:{Complex:40,Moderate:40,Simple:11,extra:[]}};
+  jan.Vigneswari = {build:{Complex:9, Moderate:5,Simple:0,extra:[]},edit:{Complex:45,Moderate:13,Simple:5, extra:[]}};
+  jan.Krishna    = {build:{Complex:0, Moderate:5,Simple:0,extra:[]},edit:{Complex:60,Moderate:40,Simple:32,extra:[]}};
+  d[DEFAULT_MONTH] = jan;
+  return d;
+}
+
+let DB={}, currentMonth=DEFAULT_MONTH, activePerson=MEMBERS[0], extraCount={};
+
+async function persistDB(){const json=JSON.stringify(DB);if(window._fbReady){_ignoreRemote=true;await window.fbSave(json);setTimeout(()=>{_ignoreRemote=false;},1500);}else{try{localStorage.setItem('wed7_local_fallback',json);}catch(e){}}}
+async function loadDB(){if(window._fbReady){const raw=await window.fbLoad();if(raw){try{const p=JSON.parse(raw);if(p&&typeof p==='object')return p;}catch(e){}}}try{const raw=localStorage.getItem('wed7_local_fallback');if(raw){const p=JSON.parse(raw);if(p&&typeof p==='object')return p;}}catch(e){}return seedDB();}
+
+function sortedKeys(){return Object.keys(DB).sort((a,b)=>{const[ma,ya]=a.split(' ');const[mb,yb]=b.split(' ');return(+ya-+yb)||(MONTH_NAMES.indexOf(ma)-MONTH_NAMES.indexOf(mb));});}
+function getP(p,mo){return DB[mo]?.[p]||emptyPerson();}
+function calcBuild(p,mo){const bd=getP(p,mo).build;return+(FIXED_BUILD.reduce((s,t)=>s+(+(bd[t]||0))*BUILD_RATES[t],0)+(bd.extra||[]).reduce((s,r)=>s+(+r.hrs||0),0)).toFixed(2);}
+function calcEdit(p,mo){const ed=getP(p,mo).edit;return+(FIXED_EDIT.reduce((s,t)=>s+(+(ed[t]||0))*EDIT_RATES[t],0)+(ed.extra||[]).reduce((s,r)=>s+(+r.hrs||0),0)).toFixed(2);}
+function calcTotal(p,mo){return+(calcBuild(p,mo)+calcEdit(p,mo)).toFixed(2);}
+function calcTotalBuildPages(mo){return MEMBERS.reduce((sum,m)=>{const bd=getP(m,mo).build;return sum+FIXED_BUILD.reduce((s,t)=>s+(+(bd[t]||0)),0)+(bd.extra||[]).reduce((s,r)=>s+(+(r.pages||0)),0);},0);}
+function calcTotalEditPages(mo){return MEMBERS.reduce((sum,m)=>{const ed=getP(m,mo).edit;return sum+FIXED_EDIT.reduce((s,t)=>s+(+(ed[t]||0)),0)+(ed.extra||[]).reduce((s,r)=>s+(+(r.pages||0)),0);},0);}
+
+// ── Auto-Sync ──
+let syncHandle=null,syncTimer=null,countdownTimer=null,countdownVal=5,lastModified='';
+async function connectFile(){if(!('showOpenFilePicker' in window)){document.getElementById('apiWarning').style.display='block';return;}try{const[handle]=await window.showOpenFilePicker({types:[{description:'Excel / CSV',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'],'application/vnd.ms-excel':['.xls'],'text/csv':['.csv']}}]});syncHandle=handle;startSync();}catch(e){}}
+function startSync(){document.getElementById('connectBtn').style.display='none';document.getElementById('disconnectBtn').style.display='inline-flex';document.getElementById('syncStatusBar').innerHTML=`<span>🔗 Excel: <b>${syncHandle.name||'file'}</b></span>`;doSync();syncTimer=setInterval(doSync,SYNC_INTERVAL);startCountdown();}
+function startCountdown(){countdownVal=5;if(countdownTimer)clearInterval(countdownTimer);countdownTimer=setInterval(()=>{countdownVal--;const el=document.getElementById('countdown');if(el)el.textContent=`Next check in ${countdownVal}s`;if(countdownVal<=0)countdownVal=5;},1000);const el=document.getElementById('countdown');if(el){el.style.display='inline-block';el.textContent='Checking in 5s';}}
+async function doSync(){if(!syncHandle)return;try{const file=await syncHandle.getFile();const sig=file.lastModified+'_'+file.size;if(sig===lastModified){countdownVal=5;return;}lastModified=sig;const ab=await file.arrayBuffer();const wb=XLSX.read(ab,{type:'array'});const res=[];let detectedMonth=null;wb.SheetNames.forEach(sn=>{const ws=wb.Sheets[sn];const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});if(!detectedMonth){const m=String(data[1]?.[4]||'').trim();const y=String(data[1]?.[7]||'').trim();if(MONTH_NAMES.includes(m)&&+y>2000)detectedMonth=`${m} ${y}`;}parseSheet(data,sn,res);});applyImport(res,detectedMonth);countdownVal=5;}catch(e){document.getElementById('syncStatusBar').innerHTML=`<span>⚠️ Read error — file may be locked</span>`;}}
+function disconnectFile(){syncHandle=null;clearInterval(syncTimer);clearInterval(countdownTimer);syncTimer=null;document.getElementById('connectBtn').style.display='inline-flex';document.getElementById('disconnectBtn').style.display='none';document.getElementById('countdown').style.display='none';document.getElementById('syncStatusBar').innerHTML=`<span>No file connected</span>`;}
+
+// ── Manual Upload ──
+function onDragOver(e){e.preventDefault();document.getElementById('dropZone').classList.add('dragover');}
+function onDragLeave(){document.getElementById('dropZone').classList.remove('dragover');}
+function onDrop(e){e.preventDefault();document.getElementById('dropZone').classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)processFile(f);}
+function onFileSelect(e){const f=e.target.files[0];if(f)processFile(f);}
+function processFile(file){const r=new FileReader();r.onload=function(e){try{const wb=XLSX.read(e.target.result,{type:'array'});importWorkbook(wb,file.name);}catch(err){showMsg('err','❌ Could not read file: '+err.message);}};r.readAsArrayBuffer(file);}
+function importWorkbook(wb,fname){const res=[];let detectedMonth=null;wb.SheetNames.forEach(sn=>{const ws=wb.Sheets[sn];const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});if(!detectedMonth){const m=String(data[1]?.[4]||'').trim();const y=String(data[1]?.[7]||'').trim();if(MONTH_NAMES.includes(m)&&+y>2000)detectedMonth=`${m} ${y}`;}parseSheet(data,sn,res);});if(!res.length){showMsg('err','⚠️ No matching data found. Check the format guide below.');return;}applyImport(res,detectedMonth);showMsg('ok',`✅ Imported ${res.length} data points from "${fname}" → ${currentMonth}`);}
+
+function parseSheet(rows,sheetName,result){const sLow=sheetName.toLowerCase();let secHint=sLow.includes('build')?'build':sLow.includes('edit')?'edit':null;let headerRow=-1,colMap={},typeCol=-1;for(let r=0;r<Math.min(rows.length,15);r++){const row=rows[r];let found=0;MEMBERS.forEach(m=>{row.forEach((cell,ci)=>{if(String(cell).trim().toLowerCase()===m.toLowerCase()){colMap[m]=ci;found++;}});});if(found>=2){headerRow=r;row.forEach((cell,ci)=>{const v=String(cell).trim().toLowerCase();if(v==='type'||v==='page type')typeCol=ci;});if(typeCol===-1)typeCol=0;break;}}if(headerRow===-1||Object.keys(colMap).length<2)return;let currentSec=secHint||'build';for(let r=headerRow+1;r<rows.length;r++){const row=rows[r];if(!row||!row.length)continue;const typeVal=String(row[typeCol]||'').trim();if(!typeVal)continue;const tvLow=typeVal.toLowerCase();if(tvLow.includes('build')){currentSec='build';continue;}if(tvLow.includes('edit')){currentSec='edit';continue;}if(tvLow.includes('total')||tvLow.includes('hour'))continue;let type='';if(tvLow.includes('complex'))type='Complex';else if(tvLow.includes('moderate')||tvLow.includes('modrate'))type='Moderate';else if(tvLow.includes('simple'))type='Simple';else type=typeVal;MEMBERS.forEach(member=>{if(colMap[member]===undefined)return;const v=row[colMap[member]];const pages=parseFloat(String(v||'0').replace(/[^0-9.]/g,''))||0;if(pages===0)return;const rate=currentSec==='build'?BUILD_RATES[type]:EDIT_RATES[type];const hrs=rate?+(pages*rate).toFixed(2):pages;result.push({person:member,sec:currentSec,type,pages,hrs});});}}
+
+// ── FIX 2: applyImport now PRESERVES manually-added extra fields ──
+// Only the fixed rows (Complex/Moderate/Simple) are overwritten from Excel.
+// Extra rows added via "Add Field" are kept untouched during sync.
+async function applyImport(result,detectedMonth){
+  let monthKey=detectedMonth||getEntryKey();
+  if(!DB[monthKey])DB[monthKey]=emptyMonth();
+  MEMBERS.forEach(p=>{
+    if(!DB[monthKey][p])DB[monthKey][p]=emptyPerson();
+    // Reset only fixed rows — leave extra[] intact so manual fields survive sync
+    FIXED_BUILD.forEach(t=>{DB[monthKey][p].build[t]=0;});
+    FIXED_EDIT.forEach(t=>{DB[monthKey][p].edit[t]=0;});
+    // Do NOT clear extra arrays here — manual "Add Field" entries must survive
+  });
+  result.forEach(({person,sec,type,pages})=>{
+    if(!MEMBERS.includes(person))return;
+    const pd=DB[monthKey][person];
+    const fixed=sec==='build'?FIXED_BUILD:FIXED_EDIT;
+    if(fixed.includes(type))pd[sec][type]=pages;
+    // Non-fixed types from Excel are intentionally ignored (no extra rows from Excel)
+  });
+  await persistDB();
+  currentMonth=monthKey;
+  rebuildMonthSelect();
+  renderDashboard();
+  buildEntryPanel();
+}
+
+// ── Month Select ──
+function rebuildMonthSelect(){
+  const sel=document.getElementById('monthSelect');
+  sel.innerHTML='';
+  sortedKeys().forEach(k=>{
+    const o=document.createElement('option');
+    o.value=k;o.textContent=k;
+    if(k===currentMonth)o.selected=true;
+    sel.appendChild(o);
+  });
+  updateExportMonthLabels();
+}
+function switchMonth(){currentMonth=document.getElementById('monthSelect').value;updateExportMonthLabels();renderDashboard();}
+function getEntryKey(){return`${document.getElementById('entryMonth').value} ${document.getElementById('entryYear').value}`;}
+function onEntryMonthChange(){buildEntryPanel();}
+function updateExportMonthLabels(){
+  document.getElementById('exportMonthLabel').textContent=currentMonth;
+  const el2=document.getElementById('entryExportMonthLabel');
+  if(el2)el2.textContent=currentMonth;
+}
+
+// ── KPI ──
+function renderKPI(){
+  document.getElementById('kpiRow').innerHTML=MEMBERS.map((m,i)=>{
+    const b=calcBuild(m,currentMonth),e=calcEdit(m,currentMonth),col=getMemberColor(i);
+    return`<div class="kpi" style="border-top:3px solid ${col}">
+      <div class="kpi-name">${m}</div>
+      <div class="kpi-val" style="color:${col}">${+(b+e).toFixed(2)}<span style="font-size:12px;color:var(--muted);font-weight:400"> hrs</span></div>
+      <div class="kpi-sub">Build: <strong>${b}</strong> &nbsp;|&nbsp; Edit: <strong>${e}</strong></div>
+    </div>`;
+  }).join('');
+  const cols=Math.min(MEMBERS.length,5);
+  document.getElementById('kpiRow').style.gridTemplateColumns=`repeat(${cols},1fr)`;
+}
+
+let buildChartInst,editChartInst;
+function renderCharts(){
+  const gridColor    = isDark ? '#2E2E2E'  : '#E5E7EB';
+  const tickColor    = isDark ? '#F5F5F5'  : '#1C1C1C';
+  const tooltipBg    = isDark ? '#121212'  : '#F7F7F9';
+  const tooltipTitle = isDark ? '#F5F5F5'  : '#1C1C1C';
+  const accentColor  = isDark ? '#00FFFF'  : '#007BFF';
+  const hlColor      = isDark ? '#A3FF00'  : '#10B981';
+
+  const colors    = MEMBERS.map((m,i) => getMemberColor(i));
+  const colorsFill= colors.map(c => c + 'CC');
+
+  const bpEl=document.getElementById('buildTotalPages'),epEl=document.getElementById('editTotalPages');
+  if(bpEl) bpEl.textContent=calcTotalBuildPages(currentMonth);
+  if(epEl) epEl.textContent=calcTotalEditPages(currentMonth);
+
+  const buildData = MEMBERS.map(m => calcBuild(m, currentMonth));
+  const editData  = MEMBERS.map(m => calcEdit(m, currentMonth));
+
+  if(buildChartInst) buildChartInst.destroy();
+  buildChartInst = new Chart(document.getElementById('buildChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: MEMBERS,
+      datasets: [{
+        label: 'Page Build (hrs)',
+        data: buildData,
+        backgroundColor: colorsFill,
+        borderColor: colors,
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: tooltipBg,
+          borderColor: gridColor,
+          borderWidth: 1,
+          titleColor: tooltipTitle,
+          bodyColor: accentColor,
+          callbacks: { label: c => ` ${c.parsed.y} hrs` }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: tickColor, font: { size: 12 } },
+          grid: { color: gridColor }
+        },
+        y: {
+          ticks: { color: tickColor },
+          grid: { color: gridColor },
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Hours',
+            color: accentColor,
+            font: { size: 11 }
+          }
+        }
+      }
+    }
+  });
+
+  document.getElementById('buildLegend').innerHTML = MEMBERS.map((m,i) =>
+    `<span class="legend-item">
+      <span class="legend-swatch" style="background:${colors[i]}"></span>
+      ${m}: <strong>${buildData[i]} hrs</strong>
+    </span>`
+  ).join('');
+
+  if(editChartInst) editChartInst.destroy();
+  editChartInst = new Chart(document.getElementById('editChart').getContext('2d'), {
+    type: 'pie',
+    data: {
+      labels: MEMBERS,
+      datasets: [{
+        data: editData,
+        backgroundColor: colorsFill,
+        borderColor: colors,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: tooltipBg,
+          borderColor: gridColor,
+          borderWidth: 1,
+          titleColor: tooltipTitle,
+          bodyColor: hlColor,
+          callbacks: {
+            label: c => {
+              const tot = editData.reduce((a,b) => a+b, 0);
+              const pct = tot > 0 ? ((c.parsed / tot) * 100).toFixed(1) : 0;
+              return ` ${c.parsed} hrs (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  const editTotal = editData.reduce((a,b) => a+b, 0);
+  document.getElementById('editLegend').innerHTML = MEMBERS.map((m,i) => {
+    const pct = editTotal > 0 ? ((editData[i]/editTotal)*100).toFixed(1) : 0;
+    return `<span class="legend-item">
+      <span class="legend-swatch" style="background:${colors[i]}"></span>
+      ${m}: <strong>${editData[i]} hrs (${pct}%)</strong>
+    </span>`;
+  }).join('');
+}
+
+// ── FIX 1: Summary Table — now shows extra rows too ──
+function renderTable(){
+  let html='';
+  MEMBERS.forEach((p,pi)=>{
+    const pd=getP(p,currentMonth),color=getMemberColor(pi),total=calcTotal(p,currentMonth);
+
+    // Count total rows for this person to set correct rowspan
+    const buildExtras=(pd.build.extra||[]);
+    const editExtras=(pd.edit.extra||[]);
+    // 2 fixed rows (Build + Edit) + 1 total row + extra build rows + extra edit rows
+    const totalRows = 2 + buildExtras.length + editExtras.length + 1;
+
+    // Fixed build row (Complex default display)
+    const bType='Complex',eType='Complex';
+    const bPages=pd.build[bType]||0,bRate=BUILD_RATES[bType],bHrs=+(bPages*bRate).toFixed(2);
+    const ePages=pd.edit[eType]||0,eRate=EDIT_RATES[eType],eHrs=+(ePages*eRate).toFixed(2);
+    const buildOpts=FIXED_BUILD.map(t=>`<option value="${t}"${t===bType?' selected':''}>${t}</option>`).join('');
+    const editOpts=FIXED_EDIT.map(t=>`<option value="${t}"${t===eType?' selected':''}>${t}</option>`).join('');
+
+    html+=`<tr>
+        <td rowspan="${totalRows}" class="person-cell" style="color:${color};border-left:3px solid ${color};padding-left:10px;">${p}</td>
+        <td><span class="badge bg">Build</span></td>
+        <td><select class="type-sel" id="sel_${pi}_build" onchange="onTypeChange(${pi},'build')">${buildOpts}</select></td>
+        <td class="num" id="rate_${pi}_build" style="color:var(--green)">${bRate}</td>
+        <td class="num" id="pages_${pi}_build">${bPages}</td>
+        <td class="num" id="hrs_${pi}_build" style="color:var(--rose)">${bHrs>0?bHrs:'—'}</td>
+      </tr>`;
+
+    // Extra build rows in summary
+    buildExtras.forEach((ex,ei)=>{
+      const exHrs=+(+ex.hrs||0).toFixed(2);
+      html+=`<tr>
+        <td><span class="badge bg" style="opacity:.7">Build+</span></td>
+        <td style="font-size:12px;color:var(--muted)">${ex.label||'Custom'}</td>
+        <td style="font-size:11px;color:var(--muted)">manual</td>
+        <td class="num">${ex.pages||0}</td>
+        <td class="num" style="color:var(--rose)">${exHrs>0?exHrs:'—'}</td>
+      </tr>`;
+    });
+
+    html+=`<tr>
+        <td><span class="badge br">Edit</span></td>
+        <td><select class="type-sel" id="sel_${pi}_edit" onchange="onTypeChange(${pi},'edit')">${editOpts}</select></td>
+        <td class="num" id="rate_${pi}_edit" style="color:var(--green)">${eRate}</td>
+        <td class="num" id="pages_${pi}_edit">${ePages}</td>
+        <td class="num" id="hrs_${pi}_edit" style="color:var(--rose)">${eHrs>0?eHrs:'—'}</td>
+      </tr>`;
+
+    // Extra edit rows in summary
+    editExtras.forEach((ex,ei)=>{
+      const exHrs=+(+ex.hrs||0).toFixed(2);
+      html+=`<tr>
+        <td><span class="badge br" style="opacity:.7">Edit+</span></td>
+        <td style="font-size:12px;color:var(--muted)">${ex.label||'Custom'}</td>
+        <td style="font-size:11px;color:var(--muted)">manual</td>
+        <td class="num">${ex.pages||0}</td>
+        <td class="num" style="color:var(--rose)">${exHrs>0?exHrs:'—'}</td>
+      </tr>`;
+    });
+
+    html+=`<tr class="totrow">
+        <td colspan="4" style="color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Total</td>
+        <td></td>
+        <td class="num" id="tot_${pi}" style="color:${color};font-size:13px">${total} hrs</td>
+      </tr>`;
+  });
+  document.getElementById('tableBody').innerHTML=html;
+}
+
+function onTypeChange(pi,sec){const p=MEMBERS[pi],pd=getP(p,currentMonth);const type=document.getElementById(`sel_${pi}_${sec}`).value;const rates=sec==='build'?BUILD_RATES:EDIT_RATES;const rate=rates[type]!==undefined?rates[type]:null;const pages=(pd[sec]&&pd[sec][type]!==undefined)?(pd[sec][type]||0):0;const hrs=rate!==null?+(pages*rate).toFixed(2):pages;document.getElementById(`rate_${pi}_${sec}`).textContent=rate!==null?rate:'manual';document.getElementById(`pages_${pi}_${sec}`).textContent=pages;document.getElementById(`hrs_${pi}_${sec}`).textContent=hrs>0?hrs:'—';}
+
+// ── DELETE MEMBER ──
+let _pendingDeleteName=null;
+function deleteMember(name){
+  _pendingDeleteName=name;
+  document.getElementById('delName').textContent=name;
+  document.getElementById('delOverlay').style.display='flex';
+  document.getElementById('delYesBtn').onclick=confirmDelete;
+}
+function closeDelOverlay(){document.getElementById('delOverlay').style.display='none';_pendingDeleteName=null;}
+function confirmDelete(){
+  if(!_pendingDeleteName)return;
+  const name=_pendingDeleteName;
+  closeDelOverlay();
+  const idx=MEMBERS.indexOf(name);
+  if(idx===-1)return;
+  MEMBERS.splice(idx,1);
+  saveMembersState();
+  if(activePerson===name) activePerson=MEMBERS.length>0?MEMBERS[Math.max(0,idx-1)]:'';
+  buildEntryPanel();
+  renderDashboard();
+}
+document.getElementById('delOverlay').addEventListener('click',function(e){if(e.target===this)closeDelOverlay();});
+
+// ── Add Member ──
+function showAddMember(){document.getElementById('addMemberPanel').classList.add('show');document.getElementById('newMemberName').value='';document.getElementById('ampError').style.display='none';setTimeout(()=>document.getElementById('newMemberName').focus(),50);}
+function hideAddMember(){document.getElementById('addMemberPanel').classList.remove('show');}
+function confirmAddMember(){
+  const nameRaw=document.getElementById('newMemberName').value.trim();
+  const errEl=document.getElementById('ampError');errEl.style.display='none';
+  if(!nameRaw){errEl.textContent='⚠️ Please enter a name.';errEl.style.display='block';return;}
+  if(MEMBERS.map(m=>m.toLowerCase()).includes(nameRaw.toLowerCase())){errEl.textContent=`⚠️ "${nameRaw}" is already in the team.`;errEl.style.display='block';return;}
+  MEMBERS.push(nameRaw);saveMembersState();
+  Object.keys(DB).forEach(mo=>{if(!DB[mo][nameRaw])DB[mo][nameRaw]=emptyPerson();});
+  activePerson=nameRaw;hideAddMember();buildEntryPanel();renderDashboard();
+}
+
+// ── Download Excel Template ──
+function downloadTeamTemplate(){
+  const now=new Date(),monthName=MONTH_NAMES[now.getMonth()],year=now.getFullYear();
+  const wb=XLSX.utils.book_new(),cols=['Type',...MEMBERS];
+  const styleRow=label=>[label,...Array(MEMBERS.length).fill('')];
+  const dataRow =type =>[type, ...Array(MEMBERS.length).fill(0)];
+  const aoa=[
+    [`Work Estimation Dashboard — Team Template`,...Array(MEMBERS.length).fill('')],
+    ['','','','',monthName,'','',year,...Array(Math.max(0,MEMBERS.length-4)).fill('')],
+    [],styleRow('Page Build'),cols,dataRow('Complex'),dataRow('Moderate'),dataRow('Simple'),
+    [],styleRow('Page Edit'),cols,dataRow('Complex'),dataRow('Moderate'),dataRow('Simple'),
+    [],['--- Estimation Rates ---'],
+    ['Complex Build','2.5 hrs/page'],['Moderate Build','2.0 hrs/page'],['Simple Build','1.5 hrs/page'],
+    ['Complex Edit','1.0 hr/page'],['Moderate Edit','0.75 hr/page'],['Simple Edit','0.5 hr/page'],
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=cols.map((c,i)=>({wch:i===0?18:Math.max(c.length+4,12)}));
+  XLSX.utils.book_append_sheet(wb,ws,'Work Estimation');
+  XLSX.writeFile(wb,`Team_Work_Template_${monthName}_${year}.xlsx`);
+}
+
+// ── Members persistence ──
+function saveMembersState(){localStorage.setItem(MEMBERS_KEY,JSON.stringify(MEMBERS));}
+function loadMembersState(){try{const s=JSON.parse(localStorage.getItem(MEMBERS_KEY)||'null');return Array.isArray(s)&&s.length>0?s:null;}catch(e){return null;}}
+
+// ── ENTRY PANEL ──
+function pid(n){return n.replace(/\s+/g,'_');}
+
+function buildEntryPanel(){
+  const key=getEntryKey(),srcData=DB[key]||null;extraCount={};
+  document.getElementById('personTabs').innerHTML=
+    MEMBERS.map(p=>`
+      <button class="ptab ${p===activePerson?'active':''}" onclick="switchPerson('${p}')">
+        <span class="ptab-name">${p}</span>
+        <span class="ptab-x" onclick="event.stopPropagation();deleteMember('${p}')" title="Remove ${p}">×</span>
+      </button>`
+    ).join('')+
+    `<button class="ptab-add" onclick="showAddMember()" title="Add new team member">
+       <span>＋</span><span class="ptab-add-label">Add</span>
+     </button>`;
+  document.getElementById('personForms').innerHTML=MEMBERS.map(p=>{
+    const pd=srcData?(srcData[p]||emptyPerson()):emptyPerson();
+    return`<div class="pform ${p===activePerson?'active':''}" id="pf_${p}">${personFormHTML(p,pd)}</div>`;
+  }).join('');
+}
+
+function personFormHTML(person,pd){
+  const P=pid(person);
+  function section(label,secKey,types,rates){
+    const d=pd[secKey]||{Complex:0,Moderate:0,Simple:0,extra:[]};
+    const fixedRows=types.map(type=>{
+      const pages=+(d[type]||0),hrs=+(pages*rates[type]).toFixed(2);
+      return`<tr><td>${type}</td>
+        <td><span class="rate-pill">${rates[type]} hrs</span></td>
+        <td><input type="number" id="inp_${P}_${secKey}_${type}" value="${pages}" min="0" step="1" placeholder="0" oninput="liveCalc('${P}','${secKey}','${type}',${rates[type]})"></td>
+        <td><span class="calc-pill" id="cal_${P}_${secKey}_${type}">${hrs>0?hrs:'—'}</span></td></tr>`;
+    }).join('');
+    const extras=d.extra||[],ek=`${P}_${secKey}`;extraCount[ek]=extras.length;
+    const exRows=extras.map((ex,i)=>extraRowHTML(P,secKey,i,ex)).join('');
+    const secTotal=types.reduce((s,t)=>s+(+(d[t]||0))*rates[t],0)+extras.reduce((s,r)=>s+(+r.hrs||0),0);
+    return`<div class="fsec">${label}</div>
+      <table class="rt">
+        <thead><tr><th style="width:100px">Type</th><th>Hours/Rate</th><th>Pages</th><th>Calc. Hrs</th></tr></thead>
+        <tbody>${fixedRows}<tbody id="extra_${P}_${secKey}">${exRows}</tbody></tbody>
+        <tfoot><tr class="totrow">
+          <td colspan="2" style="color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:7px 9px">Section Total</td>
+          <td></td>
+          <td style="padding:7px 9px"><span class="calc-pill" id="sec_${P}_${secKey}" style="color:var(--green);font-size:13px">${secTotal>0?+secTotal.toFixed(2)+' hrs':'—'}</span></td>
+        </tr></tfoot>
+      </table>
+      <button class="btn btn-add-row" onclick="addExtraRow('${P}','${secKey}','${person}')">＋ Add Field</button>`;
+  }
+  const bT=FIXED_BUILD.reduce((s,t)=>s+(+(pd.build[t]||0))*BUILD_RATES[t],0)+(pd.build.extra||[]).reduce((s,r)=>s+(+r.hrs||0),0);
+  const eT=FIXED_EDIT.reduce((s,t)=>s+(+(pd.edit[t]||0))*EDIT_RATES[t],0)+(pd.edit.extra||[]).reduce((s,r)=>s+(+r.hrs||0),0);
+  return`${section('📐 Page Build','build',FIXED_BUILD,BUILD_RATES)}<div style="height:14px"></div>
+    ${section('✏️ Page Edit','edit',FIXED_EDIT,EDIT_RATES)}
+    <div class="grand-strip"><span class="lbl">Grand Total — ${person}</span>
+    <span class="grand-val" id="grand_${P}">${+(bT+eT).toFixed(2)>0?+(bT+eT).toFixed(2)+' hrs':'—'}</span></div>`;
+}
+
+// ── FIX 3: Extra row HTML — Calc Hrs auto-updates from Pages × Rate input ──
+// Type, Hours (rate/hrs), Pages are all manual. Calc Hrs = Pages × Hours entry.
+function extraRowHTML(P,secKey,idx,data={}){
+  const id=`${P}_${secKey}_ex_${idx}`;
+  const hrs=+(data.hrs||0),pages=+(data.pages||0);
+  const calcHrs=hrs>0?hrs:'—';
+  return`<tr id="tr_${id}">
+    <td><input type="text" id="${id}_label" value="${data.label||''}" placeholder="Type label"
+      oninput="autoSaveExtra('${P}','${secKey}')"></td>
+    <td><input type="number" id="${id}_rate" value="${data.rate||''}" min="0" step="0.25" placeholder="hrs/page"
+      style="max-width:80px"
+      oninput="liveExtraCalc('${id}','${P}','${secKey}')"></td>
+    <td><input type="number" id="${id}_pages" value="${pages||''}" min="0" step="1" placeholder="0"
+      oninput="liveExtraCalc('${id}','${P}','${secKey}')"></td>
+    <td style="display:flex;align-items:center;gap:5px">
+      <span class="calc-pill" id="${id}_calc">${calcHrs}</span>
+      <button class="btn btn-del" onclick="delExtra('${id}','${P}','${secKey}')">✕</button>
+    </td></tr>`;
+}
+
+// ── FIX 3: Live calc for extra rows — Pages × Rate → Calc Hrs ──
+function liveExtraCalc(id,P,secKey){
+  const rate=+(document.getElementById(`${id}_rate`)?.value||0);
+  const pages=+(document.getElementById(`${id}_pages`)?.value||0);
+  const calcHrs=rate>0&&pages>0?+(pages*rate).toFixed(2):0;
+  const el=document.getElementById(`${id}_calc`);
+  if(el)el.textContent=calcHrs>0?calcHrs:'—';
+  autoSaveExtra(P,secKey);
+}
+
+// ── FIX 1 & 2: Auto-save extra rows to DB immediately on any input change ──
+// This makes changes persist without requiring "Save & Update" button,
+// and keeps the Summary table in sync in real time.
+let _autoSaveTimer={};
+function autoSaveExtra(P,secKey){
+  const key=`${P}_${secKey}`;
+  if(_autoSaveTimer[key])clearTimeout(_autoSaveTimer[key]);
+  _autoSaveTimer[key]=setTimeout(async()=>{
+    const person=MEMBERS.find(m=>pid(m)===P);
+    if(!person)return;
+    const monthKey=getEntryKey();
+    if(!DB[monthKey])DB[monthKey]=emptyMonth();
+    if(!DB[monthKey][person])DB[monthKey][person]=emptyPerson();
+    // Collect all extra rows for this person+section
+    const extras=[];
+    document.querySelectorAll(`[id^="tr_${P}_${secKey}_ex_"]`).forEach(tr=>{
+      const rawId=tr.id.replace('tr_','');
+      const le=document.getElementById(`${rawId}_label`);
+      const re=document.getElementById(`${rawId}_rate`);
+      const pe=document.getElementById(`${rawId}_pages`);
+      const ce=document.getElementById(`${rawId}_calc`);
+      if(!le)return;
+      const rate=+(re?.value||0);
+      const pages=+(pe?.value||0);
+      const calcHrs=rate>0&&pages>0?+(pages*rate).toFixed(2):(+(ce?.textContent)||0);
+      extras.push({label:le.value||'',rate,pages,hrs:calcHrs});
+    });
+    DB[monthKey][person][secKey].extra=extras;
+    // Also save the fixed rows so nothing is lost
+    const types=secKey==='build'?FIXED_BUILD:FIXED_EDIT;
+    types.forEach(t=>{
+      const inp=document.getElementById(`inp_${P}_${secKey}_${t}`);
+      if(inp)DB[monthKey][person][secKey][t]=+(inp.value||0);
+    });
+    await persistDB();
+    // Re-render dashboard sections that show extra data (without rebuilding entry panel — avoids losing focus)
+    renderKPI();
+    renderCharts();
+    renderTable();
+  },400);
+}
+
+function addExtraRow(P,secKey,person){
+  const tbody=document.getElementById(`extra_${P}_${secKey}`);
+  const k=`${P}_${secKey}`;
+  if(extraCount[k]===undefined)extraCount[k]=0;
+  const idx=extraCount[k]++;
+  const tr=document.createElement('tr');
+  tr.id=`tr_${P}_${secKey}_ex_${idx}`;
+  tr.innerHTML=extraRowHTML(P,secKey,idx).replace(/<tr[^>]*>/,'').replace(/<\/tr>\s*$/,'');
+  tbody.appendChild(tr);
+  // Focus the label field of the new row
+  setTimeout(()=>{const lbl=document.getElementById(`${P}_${secKey}_ex_${idx}_label`);if(lbl)lbl.focus();},50);
+}
+
+function delExtra(id,P,secKey){
+  const el=document.getElementById(`tr_${id}`);
+  if(el)el.remove();
+  refreshSec(P,secKey);
+  autoSaveExtra(P,secKey);
+}
+
+function switchPerson(p){
+  activePerson=p;
+  document.querySelectorAll('.ptab').forEach(t=>{const n=t.querySelector('.ptab-name');t.classList.toggle('active',n&&n.textContent===p);});
+  document.querySelectorAll('.pform').forEach(f=>f.classList.toggle('active',f.id===`pf_${p}`));
+}
+function liveCalc(P,secKey,type,rate){
+  const pages=+(document.getElementById(`inp_${P}_${secKey}_${type}`)?.value||0);
+  const hrs=+(pages*rate).toFixed(2);
+  const el=document.getElementById(`cal_${P}_${secKey}_${type}`);
+  if(el)el.textContent=hrs>0?hrs:'—';
+  refreshSec(P,secKey);
+}
+function refreshSec(P,secKey){
+  const types=secKey==='build'?FIXED_BUILD:FIXED_EDIT;
+  const rates=secKey==='build'?BUILD_RATES:EDIT_RATES;
+  let total=types.reduce((s,t)=>s+(+(document.getElementById(`inp_${P}_${secKey}_${t}`)?.value||0))*rates[t],0);
+  // Sum calc-pills from extra rows
+  document.querySelectorAll(`[id^="${P}_${secKey}_ex_"][id$="_calc"]`).forEach(el=>{
+    const v=parseFloat(el.textContent)||0;total+=v;
+  });
+  const el=document.getElementById(`sec_${P}_${secKey}`);
+  if(el)el.textContent=total>0?+total.toFixed(2)+' hrs':'—';
+  refreshGrand(P);
+}
+function refreshGrand(P){
+  let total=0;
+  ['build','edit'].forEach(sec=>{
+    const types=sec==='build'?FIXED_BUILD:FIXED_EDIT;
+    const rates=sec==='build'?BUILD_RATES:EDIT_RATES;
+    types.forEach(t=>{total+=(+(document.getElementById(`inp_${P}_${sec}_${t}`)?.value||0))*rates[t];});
+    document.querySelectorAll(`[id^="${P}_${sec}_ex_"][id$="_calc"]`).forEach(el=>{total+=parseFloat(el.textContent)||0;});
+  });
+  const el=document.getElementById(`grand_${P}`);
+  if(el)el.textContent=total>0?+total.toFixed(2)+' hrs':'—';
+}
+
+async function saveAllData(){
+  const key=getEntryKey();if(!DB[key])DB[key]=emptyMonth();
+  MEMBERS.forEach(person=>{
+    const P=pid(person);if(!DB[key][person])DB[key][person]=emptyPerson();
+    ['build','edit'].forEach(sec=>{
+      const types=sec==='build'?FIXED_BUILD:FIXED_EDIT;
+      types.forEach(t=>{DB[key][person][sec][t]=+(document.getElementById(`inp_${P}_${sec}_${t}`)?.value||0);});
+      const extras=[];
+      document.querySelectorAll(`[id^="tr_${P}_${sec}_ex_"]`).forEach(tr=>{
+        const rawId=tr.id.replace('tr_','');
+        const le=document.getElementById(`${rawId}_label`);
+        const re=document.getElementById(`${rawId}_rate`);
+        const pe=document.getElementById(`${rawId}_pages`);
+        const ce=document.getElementById(`${rawId}_calc`);
+        if(!le)return;
+        const rate=+(re?.value||0);
+        const pages=+(pe?.value||0);
+        const calcHrs=rate>0&&pages>0?+(pages*rate).toFixed(2):(+(ce?.textContent)||0);
+        extras.push({label:le.value||'',rate,pages,hrs:calcHrs});
+      });
+      DB[key][person][sec].extra=extras;
+    });
+  });
+  await persistDB();currentMonth=key;rebuildMonthSelect();renderDashboard();
+  const msg=document.getElementById('saveMsg');
+  msg.textContent=window._fbReady?'✅ Saved to Firebase! All team members will see this update.':'✅ Saved locally (connect Firebase for team sync).';
+  msg.style.display='block';setTimeout(()=>{msg.style.display='none';},4000);
+}
+function showMsg(type,msg){document.getElementById('importOk').style.display='none';document.getElementById('importErr').style.display='none';const el=document.getElementById(type==='ok'?'importOk':'importErr');el.textContent=msg;el.style.display='block';if(type==='ok')setTimeout(()=>{el.style.display='none';},6000);}
+
+// ── EXPORT DROPDOWN TOGGLES ──
+function toggleExportDropdown(){
+  const btn=document.getElementById('hdrExportBtn');
+  const dd=document.getElementById('hdrExportDropdown');
+  const open=dd.classList.toggle('show');
+  btn.classList.toggle('open',open);
+  if(open){document.addEventListener('click',closeExportOnOutside,{once:true});}
+}
+function closeExportOnOutside(e){
+  const wrap=document.getElementById('hdrExportWrap');
+  if(!wrap.contains(e.target)){document.getElementById('hdrExportDropdown').classList.remove('show');document.getElementById('hdrExportBtn').classList.remove('open');}
+}
+function toggleEntryExportDropdown(){
+  const btn=document.getElementById('entryExportBtn');
+  const dd=document.getElementById('entryExportDropdown');
+  const open=dd.classList.toggle('show');
+  btn.classList.toggle('open',open);
+  if(open){document.addEventListener('click',closeEntryExportOnOutside,{once:true});}
+}
+function closeEntryExportOnOutside(e){
+  const wrap=document.getElementById('entryExportWrap');
+  if(!wrap.contains(e.target)){document.getElementById('entryExportDropdown').classList.remove('show');document.getElementById('entryExportBtn').classList.remove('open');}
+}
+function closeAllExportDropdowns(){
+  document.getElementById('hdrExportDropdown').classList.remove('show');
+  document.getElementById('hdrExportBtn').classList.remove('open');
+  document.getElementById('entryExportDropdown').classList.remove('show');
+  document.getElementById('entryExportBtn').classList.remove('open');
+}
+
+// ── EXPORT EXCEL (.csv) ──
+function exportExcel(){
+  closeAllExportDropdowns();
+  const mo = currentMonth;
+  const rows = [];
+  rows.push(['Work Estimation Dashboard — Export']);
+  rows.push(['Month', mo]);
+  rows.push(['Exported At', new Date().toLocaleString()]);
+  rows.push([]);
+  rows.push(['=== PAGE BUILD — DETAILED DATA ===']);
+  rows.push(['Person', 'Type', 'Rate (hrs/page)', 'Pages', 'Calculated Hours']);
+  MEMBERS.forEach(m => {
+    const pd = getP(m, mo);
+    FIXED_BUILD.forEach(type => {
+      const pages = +(pd.build[type] || 0);
+      const rate  = BUILD_RATES[type];
+      const hrs   = +(pages * rate).toFixed(2);
+      rows.push([m, type, rate, pages, hrs]);
+    });
+    (pd.build.extra || []).forEach(ex => {
+      rows.push([m, ex.label || 'Custom', ex.rate||'manual', ex.pages || 0, ex.hrs || 0]);
+    });
+    rows.push([m, 'SUBTOTAL', '', '', calcBuild(m, mo)]);
+    rows.push([]);
+  });
+  rows.push(['TOTAL BUILD PAGES', calcTotalBuildPages(mo)]);
+  rows.push([]);
+  rows.push(['=== PAGE EDIT — DETAILED DATA ===']);
+  rows.push(['Person', 'Type', 'Rate (hrs/page)', 'Pages', 'Calculated Hours']);
+  MEMBERS.forEach(m => {
+    const pd = getP(m, mo);
+    FIXED_EDIT.forEach(type => {
+      const pages = +(pd.edit[type] || 0);
+      const rate  = EDIT_RATES[type];
+      const hrs   = +(pages * rate).toFixed(2);
+      rows.push([m, type, rate, pages, hrs]);
+    });
+    (pd.edit.extra || []).forEach(ex => {
+      rows.push([m, ex.label || 'Custom', ex.rate||'manual', ex.pages || 0, ex.hrs || 0]);
+    });
+    rows.push([m, 'SUBTOTAL', '', '', calcEdit(m, mo)]);
+    rows.push([]);
+  });
+  rows.push(['TOTAL EDIT PAGES', calcTotalEditPages(mo)]);
+  rows.push([]);
+  rows.push(['=== COLUMN CHART DATA — Build Hours per Person ===']);
+  rows.push(['Person', 'Build Hours']);
+  MEMBERS.forEach(m => { rows.push([m, calcBuild(m, mo)]); });
+  rows.push([]);
+  const editTotal = MEMBERS.reduce((s,m) => s + calcEdit(m, mo), 0);
+  rows.push(['=== PIE CHART DATA — Edit Hours Distribution ===']);
+  rows.push(['Person', 'Edit Hours', 'Percentage (%)']);
+  MEMBERS.forEach(m => {
+    const eh = calcEdit(m, mo);
+    const pct = editTotal > 0 ? +((eh / editTotal) * 100).toFixed(1) : 0;
+    rows.push([m, eh, pct]);
+  });
+  rows.push([]);
+  rows.push(['=== SUMMARY — All Types Expanded ===']);
+  rows.push(['Person', 'Section', 'Type', 'Rate (hrs/page)', 'Pages', 'Calc. Hours', 'Total Hours']);
+  MEMBERS.forEach(m => {
+    const pd = getP(m, mo);
+    const total = calcTotal(m, mo);
+    FIXED_BUILD.forEach((type, i) => {
+      const pages = +(pd.build[type] || 0);
+      const rate  = BUILD_RATES[type];
+      const hrs   = +(pages * rate).toFixed(2);
+      rows.push([m, 'Build', type, rate, pages, hrs, i === 0 ? total : '']);
+    });
+    (pd.build.extra || []).forEach(ex => {
+      rows.push([m, 'Build', ex.label || 'Custom', ex.rate||'manual', ex.pages || 0, ex.hrs || 0, '']);
+    });
+    FIXED_EDIT.forEach(type => {
+      const pages = +(pd.edit[type] || 0);
+      const rate  = EDIT_RATES[type];
+      const hrs   = +(pages * rate).toFixed(2);
+      rows.push([m, 'Edit', type, rate, pages, hrs, '']);
+    });
+    (pd.edit.extra || []).forEach(ex => {
+      rows.push([m, 'Edit', ex.label || 'Custom', ex.rate||'manual', ex.pages || 0, ex.hrs || 0, '']);
+    });
+    rows.push([]);
+  });
+  rows.push(['=== ESTIMATION RATES (FIXED) ===']);
+  rows.push(['Type', 'Section', 'Rate (hrs/page)']);
+  FIXED_BUILD.forEach(t => rows.push([t, 'Page Build', BUILD_RATES[t]]));
+  FIXED_EDIT.forEach(t  => rows.push([t, 'Page Edit',  EDIT_RATES[t]]));
+  const csvContent = rows.map(r =>
+    r.map(cell => {
+      const s = String(cell == null ? '' : cell);
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"`
+        : s;
+    }).join(',')
+  ).join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=`Work_Estimation_${mo.replace(' ','_')}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ── EXPORT PDF ──
+function exportPDF(){
+  closeAllExportDropdowns();
+  const style = document.createElement('style');
+  style.id = '__pdf_print_style';
+  style.textContent = `
+    @media print {
+      @page { margin: 12mm; size: A3 landscape; }
+      header { position: relative !important; box-shadow: none !important; }
+      .export-wrap, #entryExportWrap { display: none !important; }
+      .theme-btn { display: none !important; }
+      .hdr-right { flex-wrap: nowrap; }
+      .fb-config-banner { display: none !important; }
+      .del-overlay { display: none !important; }
+      .chart-inner { height: 220px !important; }
+      .kpi:hover { transform: none !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+  `;
+  document.head.appendChild(style);
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => { const s=document.getElementById('__pdf_print_style');if(s)s.remove(); }, 1000);
+  }, 300);
+}
+
+// ── EXPORT PPT ──
+async function exportPPT(){
+  closeAllExportDropdowns();
+  const mo = currentMonth;
+  if(typeof PptxGenJS === 'undefined'){alert('PPT library not loaded. Please check your internet connection and try again.');return;}
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  const PURPLE='35297F',PINK='961789',WHITE='FFFFFF',LIGHT='F5F2FF',MUTED='6B5BAE';
+  const palette=['35297F','4A268A','5B2C8E','7A1F8C','961789','6B2191','3E2D85','812090','441E87','8E1A8A'];
+  const memberColors=MEMBERS.map((m,i)=>palette[i%palette.length]);
+  function addHeader(slide,title){
+    slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:'100%',h:0.65,fill:{type:'solid',color:PURPLE}});
+    slide.addText('Work Estimation Dashboard',{x:0.2,y:0.05,w:6,h:0.55,fontSize:13,bold:true,color:WHITE,fontFace:'Calibri'});
+    slide.addText(mo,{x:6.3,y:0.05,w:3,h:0.55,fontSize:11,color:'C9BFFF',fontFace:'Calibri',align:'center'});
+    slide.addText(title,{x:0.2,y:0.75,w:12.9,h:0.45,fontSize:16,bold:true,color:PURPLE,fontFace:'Calibri'});
+  }
+  const s1=pptx.addSlide();
+  s1.addShape(pptx.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{type:'solid',color:PURPLE}});
+  s1.addShape(pptx.ShapeType.rect,{x:0,y:5.8,w:'100%',h:1.7,fill:{type:'solid',color:PINK}});
+  s1.addText('Work Estimation Dashboard',{x:0.5,y:1.5,w:12.3,h:1.2,fontSize:36,bold:true,color:WHITE,fontFace:'Calibri',align:'center'});
+  s1.addText('Page Build & Edit Tracker',{x:0.5,y:2.8,w:12.3,h:0.6,fontSize:18,color:'C9BFFF',fontFace:'Calibri',align:'center'});
+  s1.addText(mo,{x:0.5,y:3.6,w:12.3,h:0.55,fontSize:22,bold:true,color:WHITE,fontFace:'Calibri',align:'center'});
+  s1.addText(`Generated: ${new Date().toLocaleDateString()}`,{x:0.5,y:6,w:12.3,h:0.4,fontSize:11,color:WHITE,fontFace:'Calibri',align:'center'});
+  const s2=pptx.addSlide();
+  s2.background={color:'F8F7FF'};
+  addHeader(s2,'Total Hours per Team Member');
+  const cardW=2.0,cardH=1.4;
+  const totalCols=Math.min(MEMBERS.length,5);
+  const totalStartX=(13.33-totalCols*(cardW+0.2))/2;
+  MEMBERS.forEach((m,i)=>{
+    const bHrs=calcBuild(m,mo),eHrs=calcEdit(m,mo),tot=+(bHrs+eHrs).toFixed(2);
+    const col=memberColors[i],cx=totalStartX+i*(cardW+0.2),cy=1.4;
+    s2.addShape(pptx.ShapeType.rect,{x:cx,y:cy,w:cardW,h:cardH,fill:{type:'solid',color:WHITE},line:{color:'D0C8FF',width:1},rectRadius:0.08});
+    s2.addShape(pptx.ShapeType.rect,{x:cx,y:cy,w:cardW,h:0.07,fill:{type:'solid',color:col}});
+    s2.addText(m,{x:cx,y:cy+0.12,w:cardW,h:0.3,fontSize:10,bold:true,color:MUTED,fontFace:'Calibri',align:'center'});
+    s2.addText(`${tot} hrs`,{x:cx,y:cy+0.42,w:cardW,h:0.5,fontSize:20,bold:true,color:col,fontFace:'Calibri',align:'center'});
+    s2.addText(`Build: ${bHrs}  |  Edit: ${eHrs}`,{x:cx,y:cy+0.95,w:cardW,h:0.3,fontSize:9,color:MUTED,fontFace:'Calibri',align:'center'});
+  });
+  const grandTotal=MEMBERS.reduce((s,m)=>s+calcTotal(m,mo),0).toFixed(2);
+  s2.addShape(pptx.ShapeType.rect,{x:0.3,y:3.1,w:12.73,h:0.55,fill:{type:'solid',color:'EDEAFF'},line:{color:'D0C8FF',width:1}});
+  s2.addText(`Grand Total — All Members: ${grandTotal} hrs  (${mo})`,{x:0.3,y:3.1,w:12.73,h:0.55,fontSize:13,bold:true,color:PURPLE,fontFace:'Calibri',align:'center'});
+  let lx=0.3;
+  s2.addText('Members:',{x:lx,y:3.85,w:1.1,h:0.3,fontSize:9,color:MUTED,fontFace:'Calibri'});
+  lx+=1.15;
+  MEMBERS.forEach((m,i)=>{
+    s2.addShape(pptx.ShapeType.rect,{x:lx,y:3.93,w:0.14,h:0.14,fill:{type:'solid',color:memberColors[i]}});
+    s2.addText(m,{x:lx+0.18,y:3.85,w:1.5,h:0.3,fontSize:9,color:MUTED,fontFace:'Calibri'});
+    lx+=1.7;
+  });
+  const s3=pptx.addSlide();
+  s3.background={color:'F8F7FF'};
+  addHeader(s3,'Page Build — Calculated Hours per Person');
+  const buildCanvas=document.getElementById('buildChart');
+  let buildImgData=null;
+  try{buildImgData=buildCanvas.toDataURL('image/png');}catch(e){}
+  if(buildImgData){s3.addImage({data:buildImgData,x:0.5,y:1.3,w:8.5,h:4.5});}
+  const buildData=MEMBERS.map(m=>({name:m,hrs:calcBuild(m,mo)}));
+  buildData.sort((a,b)=>b.hrs-a.hrs);
+  let ty=1.4;
+  s3.addText('Build Hours',{x:9.3,y:ty-0.3,w:3.5,h:0.4,fontSize:11,bold:true,color:PURPLE,fontFace:'Calibri'});
+  buildData.forEach((d,i)=>{
+    const col=memberColors[MEMBERS.indexOf(d.name)];
+    s3.addShape(pptx.ShapeType.rect,{x:9.3,y:ty+0.05,w:0.12,h:0.22,fill:{type:'solid',color:col}});
+    s3.addText(d.name,{x:9.46,y:ty,w:2,h:0.32,fontSize:10,color:'333333',fontFace:'Calibri'});
+    s3.addText(`${d.hrs} hrs`,{x:11.5,y:ty,w:1.3,h:0.32,fontSize:10,bold:true,color:col,fontFace:'Calibri',align:'right'});
+    ty+=0.38;
+  });
+  s3.addShape(pptx.ShapeType.rect,{x:9.3,y:ty+0.15,w:3.5,h:0.5,fill:{type:'solid',color:'EDEAFF'},line:{color:'D0C8FF',width:1}});
+  s3.addText(`Total Build Pages: ${calcTotalBuildPages(mo)}`,{x:9.3,y:ty+0.15,w:3.5,h:0.5,fontSize:10,bold:true,color:PURPLE,fontFace:'Calibri',align:'center'});
+  const s4=pptx.addSlide();
+  s4.background={color:'F8F7FF'};
+  addHeader(s4,'Page Edit — Hours Distribution');
+  const editCanvas=document.getElementById('editChart');
+  let editImgData=null;
+  try{editImgData=editCanvas.toDataURL('image/png');}catch(e){}
+  if(editImgData){s4.addImage({data:editImgData,x:0.5,y:1.3,w:6,h:5});}
+  const editDataArr=MEMBERS.map(m=>({name:m,hrs:calcEdit(m,mo)}));
+  const editTotalVal=editDataArr.reduce((s,d)=>s+d.hrs,0);
+  editDataArr.sort((a,b)=>b.hrs-a.hrs);
+  let ey=1.4;
+  s4.addText('Edit Hours',{x:7.0,y:ey-0.3,w:5.8,h:0.4,fontSize:11,bold:true,color:PINK,fontFace:'Calibri'});
+  s4.addText('Member',{x:7.0,y:ey,w:2.5,h:0.3,fontSize:9,bold:true,color:MUTED,fontFace:'Calibri'});
+  s4.addText('Hours',{x:9.5,y:ey,w:1.3,h:0.3,fontSize:9,bold:true,color:MUTED,fontFace:'Calibri',align:'center'});
+  s4.addText('%',{x:10.9,y:ey,w:1.5,h:0.3,fontSize:9,bold:true,color:MUTED,fontFace:'Calibri',align:'center'});
+  ey+=0.36;
+  editDataArr.forEach(d=>{
+    const col=memberColors[MEMBERS.indexOf(d.name)];
+    const pct=editTotalVal>0?((d.hrs/editTotalVal)*100).toFixed(1):0;
+    s4.addShape(pptx.ShapeType.rect,{x:7.0,y:ey+0.07,w:0.12,h:0.2,fill:{type:'solid',color:col}});
+    s4.addText(d.name,{x:7.16,y:ey,w:2.3,h:0.32,fontSize:10,color:'333333',fontFace:'Calibri'});
+    s4.addText(`${d.hrs}`,{x:9.5,y:ey,w:1.3,h:0.32,fontSize:10,bold:true,color:col,fontFace:'Calibri',align:'center'});
+    s4.addText(`${pct}%`,{x:10.9,y:ey,w:1.5,h:0.32,fontSize:10,color:MUTED,fontFace:'Calibri',align:'center'});
+    ey+=0.38;
+  });
+  s4.addShape(pptx.ShapeType.rect,{x:7.0,y:ey+0.2,w:5.3,h:0.5,fill:{type:'solid',color:'FCE8FF'},line:{color:'E5BADC',width:1}});
+  s4.addText(`Total Edit Pages: ${calcTotalEditPages(mo)}  |  Total Edit Hrs: ${editTotalVal.toFixed(2)}`,{x:7.0,y:ey+0.2,w:5.3,h:0.5,fontSize:10,bold:true,color:PINK,fontFace:'Calibri',align:'center'});
+  pptx.writeFile({fileName:`Work_Estimation_${mo.replace(' ','_')}.pptx`});
+}
+
+// ── Render + Init ──
+function renderDashboard(){renderKPI();renderCharts();renderTable();}
+
+async function init(){
+  document.getElementById('kpiRow').innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);font-size:13px">⏳ Loading data…</div>`;
+  const saved=loadMembersState();
+  MEMBERS=saved||[...BASE_MEMBERS];
+  activePerson=MEMBERS.length>0?MEMBERS[0]:BASE_MEMBERS[0];
+  const savedCfg=loadFbConfig();
+  if(savedCfg){
+    const ok=window.initFirebase(savedCfg);
+    if(ok){
+      document.getElementById('fbConfigBanner').classList.add('hidden');
+      setSyncBadge(true);
+      window.fbSubscribe(onRemoteChange);
+    }
+  }
+  DB=await loadDB();
+  if(!DB[DEFAULT_MONTH]){DB[DEFAULT_MONTH]=emptyMonth();}
+  if(!DB[currentMonth]){currentMonth=DEFAULT_MONTH;}
+  rebuildMonthSelect();
+  renderDashboard();
+  updateExportMonthLabels();
+  document.getElementById('entryMonth').value='January';
+  document.getElementById('entryYear').value=_CUR_YEAR;
+  buildEntryPanel();
+  if(!('showOpenFilePicker' in window)){
+    document.getElementById('apiWarning').style.display='block';
+    document.getElementById('connectBtn').style.display='none';
+  }
+}
+window.addEventListener('load',init);
+</script>
+</body>
+</html>
